@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include "chan.hpp"
 
 using namespace std;
 
@@ -94,6 +95,158 @@ int Solution::cppThreadTest5()
 	//C++11支持拷贝，但好像之后的版本
 	//threadB = threadA;//报错
 	threadB = move(threadA);
+
+	return 0;
+}
+
+void initialize() 
+{
+	cout << __FUNCTION__ << endl;
+}
+
+once_flag of;
+
+void myThread()
+{
+	//该函数的作用顾名思义：保证call_once调用的函数只被执行一次。
+	call_once(of, initialize);
+}
+
+// 仅输出一次：initialize
+int Solution::cppThreadTest6()
+{
+	thread threads[10];
+	for (auto &thr : threads)
+	{
+		thr = thread(myThread);
+	}
+	for (auto &thr : threads)
+	{
+		thr.join();
+	}
+
+	system("pause");
+	return 0;
+}
+
+void consume(chan<int> ch, int threadId)
+{
+	int n = 0;
+	while (ch >> n)
+	{
+		printf("[%d] %d\n", threadId, n);
+		this_thread::sleep_for(chrono::milliseconds(100));
+	}
+}
+
+int Solution::cppThreadTest7()
+{
+	chan<int> chInt(3);
+	//消费者
+	thread consumers[5];
+	for (int i = 0; i < sizeof(consumers) / sizeof(consumers[0]); i++)
+	{
+		consumers[i] = thread(consume, chInt, i + 1);
+	}
+
+	//生产数据
+	for (int i = 0; i < 16 ; i++)
+	{
+		chInt << i;
+	}
+	chInt.close(); //数据生成完毕
+
+	for (auto & thr : consumers)
+	{
+		thr.join();
+	}
+
+	system("pause");
+	return 0;
+}
+
+void inc(mutex & inMutex, int loop, int & counter)
+{
+	for (int i = 0; i < loop; i++)
+	{
+		inMutex.lock();
+		++counter;
+		inMutex.unlock();
+	}
+}
+
+int Solution::mutexTest1()
+{
+	thread threads[5];
+	mutex testMutex;
+	int counter = 0;
+	for (auto &thr : threads)
+	{
+		thr = thread(inc, ref(testMutex), 1000, ref(counter));
+	}
+
+	for (auto &thr : threads)
+	{
+		thr.join();
+	}
+
+	cout << counter << endl;
+
+	system("pause");
+	return 0;
+}
+
+void run500ms(timed_mutex & inMutex)
+{
+	auto _500ms = chrono::microseconds(500);
+	if (inMutex.try_lock_for(_500ms))
+	{
+		cout << "获得了锁" << endl;
+	}
+	else
+	{
+		cout << "未获得锁" << endl;
+	}
+}
+
+int Solution::mutexTest2()
+{
+	timed_mutex testMutex;
+	
+	testMutex.lock();
+	thread threadTest(run500ms, ref(testMutex));
+	threadTest.join();
+	testMutex.unlock();
+
+	system("pause");
+
+	return 0;
+}
+
+mutex Solution::test3Mutex;
+//lock_guard的设计保证了即使程序在锁定期间发生了异常，也会安全的释放锁，不会发生死锁
+void safeThread()
+{
+	try
+	{
+		lock_guard<mutex> lockGuard(Solution::test3Mutex);
+		throw logic_error("logic error");
+	}
+	catch (const exception & ex)
+	{
+		cerr << "[caught]" << ex.what() << endl;
+	}
+}
+
+int Solution::mutexTest3()
+{
+	safeThread();
+	//此处仍能上锁
+	test3Mutex.lock();
+	cout << "Ok, still locked" << endl;
+	test3Mutex.unlock();
+	system("pause");
+	return 0;
 }
 
 void read(future<string> *pFuture)
@@ -101,6 +254,8 @@ void read(future<string> *pFuture)
 	//read会一直阻塞，直到有值到来
 	cout << pFuture->get() << endl;
 }
+
+
 
 int Solution::promiseTest1()
 {

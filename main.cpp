@@ -5,16 +5,15 @@
 #include <chrono>//seconds
 #include "Solution.h"
 
-
 using namespace std;
-
 
 int main()
 {
 	Solution solution;
-	return solution.cppThreadTest4();
-	
+	return solution.cppThreadTest7();
+	//return solution.mutexTest3();
 	//return solution.promiseTest1();
+	return 0;
 }
 
 //int sum(int a, int b) 
