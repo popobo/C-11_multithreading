@@ -255,8 +255,6 @@ void read(future<string> *pFuture)
 	cout << pFuture->get() << endl;
 }
 
-
-
 int Solution::promiseTest1()
 {
 	//promise相当于生产者
@@ -276,6 +274,132 @@ int Solution::promiseTest1()
 
 	return 0;
 }
+
+void read2(future<int> future)
+{
+	try
+	{
+		future.get();
+	}
+	catch (future_error & e)
+	{
+		cerr << e.code() << "\n" << e.what() << endl;
+	}
+}
+
+int Solution::promiseTest2()
+{
+	thread threadTest;
+	{
+		//如果promise不设置任何值
+		//则在promise析构时会自动设置为future_error
+		//这会造成future.get抛出异常
+		promise<int> promiseTest;
+		threadTest = thread(read2, promiseTest.get_future());
+	}
+
+	threadTest.join();
+
+	system("pause");
+
+	return 0;
+}
+
+//如果thread通过ref传入参数，则线程函数的参数必须是引用
+void catchError(future<void>  & future)
+{
+	try
+	{
+		future.get();
+	}
+	catch (logic_error & e)
+	{
+		cerr << e.what() << endl;
+	}
+}
+
+
+int Solution::promiseTest3()
+{
+	promise<void> promiseTest;
+	future<void> futureTest = promiseTest.get_future();
+
+	thread threadTest(catchError, ref(futureTest));
+
+	//自定义异常需要使用make_exception_ptr转换一下
+	promiseTest.set_exception(make_exception_ptr(logic_error("caught")));
+
+	threadTest.join();
+	system("pause");
+	return 0;
+}
+
+int sum(int a, int b)
+{
+	return a + b;
+}
+
+int Solution::packagedTaskTest1()
+{
+	packaged_task<int(int, int)> task(sum);
+	future<int> future = task.get_future();
+
+	//promise一样，packaged_task支持move，但不支持拷贝
+	//thread的第一个参数不止是函数，还可以是一个可调用对象，即支持operator()(Args...)操作
+	thread t(move(task), 1, 2);
+	//等待异步计算结果
+	cout << "1 + 2 => " << future.get() << endl;
+
+	t.join();
+	system("pause");
+	return 0; 
+}
+
+int Solution::packagedTaskTest2()
+{
+	packaged_task<void()> task; //缺省构造、默认构造
+	cout << boolalpha << task.valid() << endl; //false
+	
+	packaged_task<void()> task2(move(task)); //右值构造
+	cout << boolalpha << task.valid() << endl; //false
+
+	task = packaged_task<void()>([]() {}); //右值赋值，可调用对象
+	cout << boolalpha << task.valid() << endl;
+
+	system("pause");
+	return 0;
+}
+
+
+int Solution::packagedTaskTest3()
+{
+	packaged_task<void()> convert([]() {
+		throw logic_error("will catch in future");
+	});
+
+	std::future<void> future = convert.get_future();
+
+	convert();
+
+	try
+	{
+		future.get();
+	}
+	catch (logic_error & e)
+	{
+		cerr << typeid(e).name() << ":" << e.what() << endl;
+	}
+
+	system("pause");
+
+	return 0;
+}
+
+int Solution::packagedTaskTest4()
+{
+	return 0;
+}
+
 
 Solution::Solution()
 {

@@ -10,10 +10,11 @@ using namespace std;
 int main()
 {
 	Solution solution;
-	return solution.cppThreadTest7();
+	//return solution.cppThreadTest7();
 	//return solution.mutexTest3();
-	//return solution.promiseTest1();
-	return 0;
+	//return solution.promiseTest3();
+	return solution.packagedTaskTest3();
+	//return 0;
 }
 
 //int sum(int a, int b) 
